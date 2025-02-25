@@ -30,9 +30,11 @@ void *thread_function(void * arg){
 		pthread_mutex_lock(&it->mux);    // Lock the mutex
 		ITStatus lstatus = it->status;  // GetControlValue
 		pthread_mutex_unlock(&it->mux); // Unlock the mutex
-		if (lstatus == IT_ENABLE){
+		if (lstatus == IT_ENABLE) {
 			clock_t start_time = clock();
-			sleep(it->interval);
+			double ctime = 0;
+			uint32_t tick = it->interval;
+			while(tick){ tick --; ctime ++;}
 			//calling the callback function 
 			if (it->callback != NULL){
 				it->callback();
@@ -40,8 +42,9 @@ void *thread_function(void * arg){
 
 			clock_t end_time = clock();
 			double time_passed = (double) 100 * (end_time - start_time) / CLOCKS_PER_SEC; 
-			snprintf(message, sizeof(message), "[INFO] \t The Interrupt %s takes %.6f us\n",
-			       itname, time_passed );
+
+			snprintf(message, sizeof(message), "[INFO] \t The Interrupt %s takes %.4f s",
+			       itname, (ctime / 10000.0) );
 			zeiss_printf(message);
 			
 

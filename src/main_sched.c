@@ -1,3 +1,4 @@
+
 /*
 # @Author: Diego Alejandro Parra Guzman
 # @Project: Zeiss Interview-Temperature-Monitor
@@ -6,12 +7,15 @@
 */
 #include <pthread.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include "common.h"
 #include "hal.h"
 #include "led_controller.h"
+#include "edf_sched.h"
 
 //defined values
 #define GPIO_SCL                  GPIO_5
@@ -22,22 +26,38 @@
 #define ADC_LITTLE_ENDIAN 0x0
 #define ADC_BIG_ENDIAN 0x1
 #define EEPROM_ADDR ((uint8_t)0x70)
+
 //Static Variables
 static TempMonitor m_monitor = {INIT /*MonitorStatus*/, SENSOR_A/*ActiveSensor*/};
+// Static Functions
 
-//Suported Functions
 static void adc_convert_callback(void){
-    //Read Temperature Value form ADC
-    uint16_t Tvalue = HAL_ADC_GetConvertionValue(_ADC1);
-    //Update Current Temperature
-    update_adc_value(Tvalue); 
-    //Clean the Interrupt Flag; 
-    HAL_ADC_ClearITPendingBit(_ADC1, _ADC_IT_EOC);
-
-
+	//Read Temperature Value form ADC
+	
 }
 
-int update_config_data(void){
+static int adc_init(void) {
+	//Configure GPIO1 For ADC
+	 HAL_ADC_Init(_ADC1, ADC_RESOLUTION_12BITS, ADC_LITTLE_ENDIAN);
+	 HAL_ADC_IT_Init(_ADC1, adc_convert_callback, 100);
+   return 0;
+};
+
+static int adc_pull_temp(void) {
+   if (HAL_ADC_GetITPendingBit(_ADC1,_ADC_IT_EOC)){
+	  	//Read Temperature Value form ADC
+		 uint16_t Tvalue = HAL_ADC_GetConvertionValue(_ADC1);
+		 //Update Current Temperature
+		 update_adc_value(Tvalue); 
+		//Clean the Interrupt Flag; 
+		HAL_ADC_ClearITPendingBit(_ADC1, _ADC_IT_EOC);
+   }
+   return 0;
+};
+
+
+static
+int pull_config_data(void){
     clock_t start_time = clock();
     HardwareRevision SensorConf;
     HardwareRevision* sensor_conf_ptr = &SensorConf;
@@ -74,30 +94,29 @@ int update_config_data(void){
     clock_t end_time = clock();
     double time_passed = (double) 100 * (end_time - start_time) / CLOCKS_PER_SEC; 
     	snprintf(app_message, sizeof(app_message), 
-		 "[INFO] \t Update Data from I2C takes %.6f us",
+		 "[INFO] \t Update Data from I2C takes %.6f s",
 		 time_passed
 		 );
-	zeiss_printf(app_message);
+//	zeiss_printf(app_message);
     return 0;
 }
 
-int monitor_init(void){
-       //Configure GPIO for I2C-SCL
+static int monitor_init(void) {
+	//Configure GPIO for I2C-SCL
        HAL_GPIO_Init(_GPIO5,  GPIO_SCL, _GPIO_MOD_AF,_GPIO_PMOD_NOPULL);
-       //Configure GPIO for I2C-SDA
-       HAL_GPIO_Init(_GPIO6,  GPIO_SDA, _GPIO_MOD_AF,_GPIO_PMOD_NOPULL);
-       //Initialize I2C 
-       HAL_I2CInit(_I2C1, 5000, _I2C_Mode_I2C, _I2C_DutyCycle_2, 0x00, _I2C_Ack_Enable);
-       //Configure GPIO1 For ADC
-       HAL_ADC_Init(_ADC1, ADC_RESOLUTION_12BITS, ADC_LITTLE_ENDIAN);
-       //Initialize output GPIOs 
+    //Configure GPIO for I2C-SDA
+	HAL_GPIO_Init(_GPIO6,  GPIO_SDA, _GPIO_MOD_AF,_GPIO_PMOD_NOPULL);
+	//Initialize I2C 
+	HAL_I2CInit(_I2C1, 5000, _I2C_Mode_I2C, _I2C_DutyCycle_2, 0x00, _I2C_Ack_Enable);
+	//Initialize output GPIOs 
        uint32_t gpio_pins = (GPIO_7 || GPIO_8 || GPIO_9);
        HAL_GPIOBus_Init(_GPIOC, gpio_pins, _GPIO_MOD_OUT,  _GPIO_PMOD_PULLDOWN);
-       //ADC_Interrupt
-       HAL_ADC_IT_Init(_ADC1,adc_convert_callback,100);
-       return 0;
+	//Update Monitor
+	SetMonitorNextState(&m_monitor, PULL_CONF);
+	return 0;
+};
 
-}
+
 uint8_t report_temperature_status(){
     clock_t start_time = clock();
     double Tvalue = (double) get_adc_value();
@@ -109,68 +128,84 @@ uint8_t report_temperature_status(){
     clock_t end_time = clock();
     double time_passed = (double) 100 * (end_time - start_time) / CLOCKS_PER_SEC; 
 		snprintf(app_message, sizeof(app_message), 
-		 "[INFO] \t Update Temperature DATA takes %.6f us Temp: %f",
+		 "[INFO] \t Pulling temperature DATA takes %.6f s Temp: %f",
 		 time_passed,
 		 Tvalue
 		 );
-	zeiss_printf(app_message);
+//	zeiss_printf(app_message);
 	return 0;
 }
 
-//logic 
-int monitor_main_loop(void){
-    int ret = 0;
-    switch (m_monitor.Status) {
-       case INIT:
-       if( (ret = monitor_init()) !=0) {
-            SetMonitorNextState(&m_monitor, ON_ERROR);
-             return -1;
-         }
-        SetMonitorNextState(&m_monitor, PULL_CONF);
-        break;
-        case PULL_CONF:
-        if((ret = update_config_data()) !=0){
-            SetMonitorNextState(&m_monitor, ON_ERROR);
-            return -1; 
-        }
-        SetMonitorNextState(&m_monitor, REPORTING);
-        break;
-
-        case REPORTING:
-        if ((ret = report_temperature_status()) !=0){
-            SetMonitorNextState(&m_monitor, ON_ERROR);
-            return -1;
-        }
-        SetMonitorNextState(&m_monitor, PULL_CONF);
-        break;
-
-        case ON_ERROR:
-        zeiss_printf("[ERROR] \t Monitor Main Loop General Error \n");
-        return -1;
-        default:
-            break;
-    }
-    return 0;
+static int monitor_temp_process(void) {
+	int ret = 0;
+	switch (m_monitor.Status) {
+		case INIT:
+		//this should not be called from here. 
+		break;
+		case PULL_CONF:
+			if((ret = pull_config_data()) !=0){
+            	SetMonitorNextState(&m_monitor, ON_ERROR);
+            	return -1; 
+        	}
+			SetMonitorNextState(&m_monitor, REPORTING);
+			break;
+		case REPORTING:
+			if ((ret = report_temperature_status()) !=0){
+            	SetMonitorNextState(&m_monitor, ON_ERROR);
+            	return -1;
+        	}
+			SetMonitorNextState(&m_monitor, PULL_CONF);
+			break;
+		case ON_ERROR:
+			zeiss_printf("[ERROR] \t Monitor Main Loop General Error \n");
+			return -1;
+		default:
+		break;
+	}
+	return 0;
 }
 
+
+//declare the taskset with two task
+static 	task_t taskset[2] = { 
+	     {.id = 1,
+	      .stime = 0,
+	      .p=100,
+	      .d=20,
+	      .s=UNINIT,
+	      .initf = &adc_init,
+	      .loopf = &adc_pull_temp
+	     },
+	     {.id = 2,
+	      .stime = 20,
+	      .p=100,
+	      .d=70,
+	      .s=UNINIT,
+	      .initf = &monitor_init,
+	      .loopf = &monitor_temp_process
+	     }
+	};
+
 int main(void){
-    //Init HAL
-    
-    if(HAL_Init()) {
+
+	//Init HAL
+	if(HAL_Init()) {
         zeiss_printf("hal_cannot be initialized \n");
         return -1;
     }
 
-    if (init_shared_memory() != 0) {
+	if (init_shared_memory() != 0) {
          zeiss_printf("shared memory cannot be initialized \n");
         return -1;
     }
 
-
-
-    while(1) {
-        monitor_main_loop();
-        sleep(0.5);
-    }
-
+	//calculate the hyperperiod 
+	uint32_t H = hyperperiod(taskset, 2);
+	//Initialze ready queue 
+	ready_queue_t * ready_queue;
+	task_t *tset_ptr = taskset;
+	initialize_queue(taskset,&ready_queue, 2,H);
+	while(1) {
+	spin(&tset_ptr, &ready_queue, 2, H);
+	}
 }

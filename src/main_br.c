@@ -128,7 +128,7 @@ ADC_InitTypeDef adc_conf = {.Resolution = r12Bits,
 InterruptDef m_adc_it = {.it_id = ADC1_DEV, 
 			 .callback = adc_convert_callback,
 			 .mux = PTHREAD_MUTEX_INITIALIZER,
-			 .interval = 1, // 1 = 100us 
+			 .interval = 100, // 1 = 100us 
 			 .status = IT_DISABLE 
 			};
 

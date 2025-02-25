@@ -48,6 +48,16 @@
                                    ((ADC_DEVICE) == _ADC2) || \
                                    ((ADC_DEVICE) == _ADC3))
 
+//ADC Interruption Definition
+#define _ADC_IT_EOC                                 ((uint16_t)0x0205)  
+#define _ADC_IT_AWD                                 ((uint16_t)0x0106)  
+#define _ADC_IT_JEOC                                ((uint16_t)0x0407)  
+#define _ADC_IT_OVR                                 ((uint16_t)0x201A)
+#define IS_ADC_INTERRUPT(ADC_IT) (((ADC_IT) == _ADC_IT_EOC)     || \
+                                   ((ADC_IT) == _ADC_IT_AWD)    || \
+                                   ((ADC_IT) == _ADC_IT_JEOC)   || \
+                                   ((ADC_IT) == _ADC_IT_OVR))
+
 
 #define _GPIO1  ((uint32_t)0x0020)  //GPIO1 memory region
 #define _GPIO2  ((uint32_t)0x0021)  //GPIO2 memory region

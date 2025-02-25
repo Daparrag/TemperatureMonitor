@@ -342,6 +342,20 @@ uint16_t HAL_ADC_GetConvertionValue(uint32_t ADCx) {
 
 };
 
+uint8_t HAL_ADC_GetITPendingBit(uint32_t ADCx, uint32_t IT){
+   ADC_TypeDef * adc_dev;
+        if(!IS_ADC_DEVICE(ADCx) ||
+           !IS_HAL_INIT()) {
+             assert_failed(__FILE__, __LINE__);
+           } 
+     adc_dev = Get_ADC_Device(ADCx);
+     if (adc_dev == NULL) assert_failed(__FILE__, __LINE__);
+     if (ADC_GetITStatus(adc_dev, IT)){
+      return 1;
+     }
+     return 0;
+}
+
 /** @brief clean pending Interrupt flag
  * @param ADCx: Selected ADC peripheral.
  * @param ADC_IT: specify the interrup source to enable/disable 

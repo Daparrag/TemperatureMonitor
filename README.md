@@ -10,7 +10,9 @@ This project provides three distinct build targets, allowing for flexibility dur
 
 * **`hal`**: This target utilizes a Hardware Abstraction Layer (HAL). A HAL provides a higher-level API to interact with the hardware, making the code more portable and easier to maintain. It abstracts away the direct hardware register manipulation, simplifying development and potentially improving code readability at the cost of some performance overhead. The entry point for this target is likely `src/main_hal.c`, and it includes `src/hal.c` which presumably contains the HAL implementation.
 
-Both targets share common modules for ADC, GPIO, I2C, Interrupt handling, and LED control, demonstrating a modular design that allows for code reuse and different levels of hardware abstraction.
+* **`sched`**: This target implementes the edf schedule for  enhance the system realtime capabilites. In contrast to the previous targets , where application tasks could execute freely without interruption, the EDF algorithm restricts execution by preempting tasks that exceed their deadline. This ensures that only tasks with earlier deadlines are executed, prioritizing timely completion over uninterrupted execution.
+
+All targets share common modules for ADC, GPIO, I2C, Interrupt handling, and LED control, demonstrating a modular design that allows for code reuse and different levels of hardware abstraction.
 
 ## Compilation Instructions
 
@@ -79,6 +81,28 @@ The `CMakeLists.txt` file defines the compilation rules for this project. Let's 
 *   **`include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)`**:  Adds the `include` directory within the project's source directory to the include search path. This allows you to include header files from the `include` directory in your source code using `#include "header_file.h"`.
 *   **`add_executable(baremetal ${BAREMETAL_SOURCE_FILES})`**:  This command defines the `baremetal` target as an executable. It tells CMake to compile all the source files listed in the `BAREMETAL_SOURCE_FILES` variable and link them together to create an executable named `baremetal`.
 *   **`add_executable(hal ${HAL_SOURCE_FILES})`**: Similarly, this command defines the `hal` target as an executable. It compiles and links the source files listed in `HAL_SOURCE_FILES` to create an executable named `hal`.
+
+## Execution instructions
+
+In addition to the three applications, there is also a LED simulation implemented on python. you can refer to the file `led_simulator.py`. In order to test the programs. You should first launch the led_simulator script by using the following command
+```bash
+ python3 led_simulator.py
+```
+
+once the simulator start, the following interface should be displayed in the terminal:
+
+```bash
+LED Simulation (Press Ctrl+C to exit)
+
+LED1   LED2   LED3
+ ○      ○      ○
+```
+at this point, the user should start any applcation to see the results. For example to start the baremetal program the following command can be used 
+```bash
+./baremetal
+```
+
+
 
 **In summary, to compile this project, you need to use CMake to generate build files and then use CMake again to build the executables.  You have the option to build either the `baremetal` or `hal` target, or both, depending on your needs.**
 

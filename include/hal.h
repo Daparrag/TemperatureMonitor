@@ -65,6 +65,7 @@ uint8_t HAL_I2C_GetReceivedData(uint32_t I2Cx, void** dest, size_t n_bites);
 //ADC Functions 
 uint8_t HAL_ADC_Init(uint32_t ADCx, uint32_t rsolution, uint32_t data_align);
 uint8_t HAL_ADC_IT_Init(uint32_t ADCx, func_ptr fp, uint32_t interval);
+uint8_t HAL_ADC_GetITPendingBit(uint32_t ADCx, uint32_t IT);
 uint16_t HAL_ADC_GetConvertionValue(uint32_t ADCx);
 uint8_t HAL_ADC_ClearITPendingBit(uint32_t ADCx, uint32_t IT);
  

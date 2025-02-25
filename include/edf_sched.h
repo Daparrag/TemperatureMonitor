@@ -14,32 +14,37 @@
 #include <stdint.h>
 #include <string.h>
 
+typedef enum {UNINIT = 0x0, RUNNING=0x1} task_state;
 
 typedef struct{
 	int16_t id;  //task id
 	int stime;    // first execution of the task. 
 	uint16_t p;  //task period
 	uint16_t d;  // task deadline
+	task_state s;
 	int (*initf)(void); // init function. 
 	int (*loopf)(void); // periodic function. 
 }task_t;
 
 typedef struct {
-	uint16_t task_id; //task id
-	uint16_t priority;//priority of the task
-	uint16_t time_left;// remain time for execution
+	int16_t task_id; //task id
+	int16_t priority;//priority of the task
+	int16_t time_left;// remain time for execution
 	uint16_t arrival_time; // arrivaltime on the queue
-}ready_task_t; 
+	clock_t stime; //starting time for computation
+	clock_t etime; //ending time computation
+}ready_queue_t; 
 /*
  * @brief read the list of task to process. 
- * @param task_t: list of task to be scheduled
+ * @param tasklist list of task to execute  
  * */
 int read_taskset(task_t **tasklist);
 /*
  * @brief calculate the hyperperiod for a list of task. 
  * @param task_t: list of task to be processed. 
+ * @param N: number of task to 
  * */
-int hyperperiod(task_t** taskset, int N);
+uint32_t hyperperiod(task_t* taskset, int N);
 /* @ brief register a init function to a task;
  * @ param task_id: task id.
  * @ param fun: pointer to init function.
@@ -56,20 +61,20 @@ int register_loopf(int task_id, int(*fun)());
  * @ param queue: task queue.
  * @ param ntask: number of task.
  * */
-void initialize_queue(ready_task_t ** queue, int n_task);
+void initialize_queue( task_t *taskset, ready_queue_t** queue, int n_task, int hperiod);
 
 /* @ brief register a init function to a task;
  * @ param task_id: task id.
  * @ param fun: pointer to periodic function.
  * */
-int update_queue(task_t ** taskset, ready_task_t ** queue, 
+int update_queue(task_t ** taskset, ready_queue_t ** queue, 
 		 int queue_len, int t, int N);
 
 /* @ brief register a init function to a task;
  * @ param task_id: task id.
  * @ param fun: pointer to periodic function.
  * */
-void print_ready_queue(ready_task_t * queue, int queue_len);
+void print_ready_queue(ready_queue_t * queue, int queue_len);
 
 
 /* @ brief scheduler implementation;
@@ -78,6 +83,6 @@ void print_ready_queue(ready_task_t * queue, int queue_len);
  * @ param N number of task.  
  * @ param H: hyperperiod.
  * */
-void spin(task_t**taskset, ready_task_t** queue, int N, int H);
+void spin(task_t**taskset, ready_queue_t** queue, int N, int H);
 
 #endif //_ZEISS_EDF_SCHED_H__ 
